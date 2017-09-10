@@ -11,7 +11,7 @@ func ReadJSON(r io.Reader, v interface{}) error {
 }
 
 func WriteJSON(w http.ResponseWriter, statusCode int, body interface{}) error {
-	w.Header().Set(HeaderContentType, MediaTypeApplicationJSONUTF8)
+	w.Header().Set(HeaderContentType, MediaTypeJSON)
 	w.WriteHeader(statusCode)
 
 	if body != nil {
@@ -21,45 +21,58 @@ func WriteJSON(w http.ResponseWriter, statusCode int, body interface{}) error {
 	return nil
 }
 
-type errorMessage struct {
-	Message string `json:"message"`
-}
-
 type Response struct {
 	StatusCode int
 	Headers    map[string]string
 	Body       interface{}
-	Error      error
 }
 
-func ResponseOK(body interface{}) *Response {
-	return &Response{http.StatusOK, nil, body, nil}
+func NewResponse(statusCode int) *Response {
+	return &Response{statusCode, map[string]string{}, nil}
 }
 
-func ResponseCreated(body interface{}, location string) *Response {
-	return &Response{http.StatusCreated, map[string]string{HeaderLocation: location}, body, nil}
+func (r *Response) WithHeader(key, value string) *Response {
+	headers := map[string]string{key: value}
+
+	for k, v := range r.Headers {
+		headers[k] = v
+	}
+
+	return &Response{r.StatusCode, headers, r.Body}
+}
+
+func (r *Response) WithBody(body interface{}) *Response {
+	return &Response{r.StatusCode, r.Headers, body}
+}
+
+func ResponseOK() *Response {
+	return NewResponse(http.StatusOK)
+}
+
+func ResponseCreated() *Response {
+	return NewResponse(http.StatusCreated)
 }
 
 func ResponseNoContent() *Response {
-	return &Response{http.StatusNoContent, nil, nil, nil}
+	return NewResponse(http.StatusNoContent)
 }
 
 func ResponseBadRequest() *Response {
-	return &Response{http.StatusBadRequest, nil, nil, nil}
+	return NewResponse(http.StatusBadRequest)
 }
 
 func ResponseUnauthorized() *Response {
-	return &Response{http.StatusUnauthorized, nil, nil, nil}
+	return NewResponse(http.StatusUnauthorized)
 }
 
 func ResponseForbidden() *Response {
-	return &Response{http.StatusForbidden, nil, nil, nil}
+	return NewResponse(http.StatusForbidden)
 }
 
 func ResponseNotFound() *Response {
-	return &Response{http.StatusNotFound, nil, nil, nil}
+	return NewResponse(http.StatusNotFound)
 }
 
-func ResponseInternalServerError(err error) *Response {
-	return &Response{http.StatusInternalServerError, nil, nil, err}
+func ResponseInternalServerError() *Response {
+	return NewResponse(http.StatusInternalServerError)
 }
