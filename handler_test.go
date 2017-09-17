@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 )
 
@@ -68,5 +69,25 @@ func TestServeHTTP(t *testing.T) {
 
 	if errorMessage.Message != errTest.Error() {
 		t.Errorf("got %v, want %v", errorMessage.Message, errTest.Error())
+	}
+
+	testCookie := http.Cookie{
+		Name:  HeaderAuthorization,
+		Value: "Bearer a1b2c3d4e5",
+	}
+
+	handler = createResponseHandlerFunc(ResponseOK().WithCookie(testCookie).WithBody(true), nil)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodGet, "/", nil)
+
+	handler.ServeHTTP(w, r)
+
+	if n := len(w.Result().Cookies()); n != 1 {
+		t.Fatalf("got %v, want %v", n, 1)
+	}
+
+	if c := w.Result().Cookies()[0]; reflect.DeepEqual(c, testCookie) {
+		t.Errorf("got %v, want %v", c, testCookie)
 	}
 }

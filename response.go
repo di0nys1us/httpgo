@@ -24,11 +24,12 @@ func WriteJSON(w http.ResponseWriter, statusCode int, body interface{}) error {
 type Response struct {
 	StatusCode int
 	Headers    map[string]string
+	Cookies    []http.Cookie
 	Body       interface{}
 }
 
 func NewResponse(statusCode int) *Response {
-	return &Response{statusCode, map[string]string{}, nil}
+	return &Response{statusCode, map[string]string{}, nil, nil}
 }
 
 func (r *Response) WithHeader(key, value string) *Response {
@@ -38,11 +39,15 @@ func (r *Response) WithHeader(key, value string) *Response {
 		headers[k] = v
 	}
 
-	return &Response{r.StatusCode, headers, r.Body}
+	return &Response{r.StatusCode, headers, r.Cookies, r.Body}
+}
+
+func (r *Response) WithCookie(c http.Cookie) *Response {
+	return &Response{r.StatusCode, r.Headers, append(r.Cookies, c), r.Body}
 }
 
 func (r *Response) WithBody(body interface{}) *Response {
-	return &Response{r.StatusCode, r.Headers, body}
+	return &Response{r.StatusCode, r.Headers, r.Cookies, body}
 }
 
 func ResponseOK() *Response {

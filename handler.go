@@ -22,6 +22,10 @@ func (f ResponseHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(k, v)
 		}
 
+		for _, c := range response.Cookies {
+			http.SetCookie(w, &c)
+		}
+
 		WriteJSON(w, response.StatusCode, response.Body)
 	}
 }
