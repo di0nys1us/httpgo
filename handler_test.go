@@ -71,7 +71,7 @@ func TestServeHTTP(t *testing.T) {
 		t.Errorf("got %v, want %v", errorMessage.Message, errTest.Error())
 	}
 
-	testCookie := http.Cookie{
+	testCookie := &http.Cookie{
 		Name:  HeaderAuthorization,
 		Value: "Bearer a1b2c3d4e5",
 	}

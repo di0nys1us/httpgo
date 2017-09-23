@@ -23,7 +23,7 @@ func (f ResponseHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, c := range response.Cookies {
-			http.SetCookie(w, &c)
+			http.SetCookie(w, c)
 		}
 
 		WriteJSON(w, response.StatusCode, response.Body)

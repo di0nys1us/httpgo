@@ -24,7 +24,7 @@ func WriteJSON(w http.ResponseWriter, statusCode int, body interface{}) error {
 type Response struct {
 	StatusCode int
 	Headers    map[string]string
-	Cookies    []http.Cookie
+	Cookies    []*http.Cookie
 	Body       interface{}
 }
 
@@ -42,7 +42,7 @@ func (r *Response) WithHeader(key, value string) *Response {
 	return &Response{r.StatusCode, headers, r.Cookies, r.Body}
 }
 
-func (r *Response) WithCookie(c http.Cookie) *Response {
+func (r *Response) WithCookie(c *http.Cookie) *Response {
 	return &Response{r.StatusCode, r.Headers, append(r.Cookies, c), r.Body}
 }
 
