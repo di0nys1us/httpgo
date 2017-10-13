@@ -1,7 +1,10 @@
 package httpgo
 
 const (
+	// HeaderAuthorization TODO
 	HeaderAuthorization = "Authorization"
-	HeaderContentType   = "Content-Type"
-	HeaderLocation      = "Location"
+	// HeaderContentType TODO
+	HeaderContentType = "Content-Type"
+	// HeaderLocation TODO
+	HeaderLocation = "Location"
 )

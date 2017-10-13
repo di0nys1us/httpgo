@@ -1,93 +1,119 @@
 package httpgo
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
 	locationTest = "http://localhost/resource/1"
 )
 
-var (
-	errTest = errors.New("testMessage")
-)
+type errorTest string
 
-func createResponseHandlerFunc(response *Response, err error) ResponseHandlerFunc {
-	return ResponseHandlerFunc(func(w http.ResponseWriter, r *http.Request) (*Response, error) {
-		return response, err
-	})
+func (r errorTest) Error() string {
+	return string(r)
 }
 
-func TestServeHTTP(t *testing.T) {
-	handler := createResponseHandlerFunc(ResponseOK().WithBody(true), nil)
+type errorStatusCode int
 
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/", nil)
+func (c errorStatusCode) StatusCode() int {
+	return int(c)
+}
 
-	handler.ServeHTTP(w, r)
+type errorBody string
 
-	if statusCode := w.Result().StatusCode; statusCode != http.StatusOK {
-		t.Errorf("got %v, want %v", statusCode, http.StatusOK)
-	}
+func (b errorBody) Body() interface{} {
+	return string(b)
+}
 
-	handler = createResponseHandlerFunc(ResponseCreated().WithBody(true).WithHeader(HeaderLocation, locationTest), nil)
+func TestResponseHandlerFunc(t *testing.T) {
+	t.Run("TestServeHTTP", func(t *testing.T) {
+		cases := []struct {
+			name       string
+			handler    ErrorHandlerFunc
+			statusCode int
+			body       interface{}
+		}{
+			{
+				"return nil",
+				ErrorHandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					return nil
+				}),
+				http.StatusOK,
+				nil,
+			},
+			{
+				"return error",
+				ErrorHandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					return errors.New("test")
+				}),
+				http.StatusInternalServerError,
+				`{ "message": "test" }`,
+			},
+			{
+				"return custom error",
+				ErrorHandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					return struct {
+						errorTest
+					}{"test"}
+				}),
+				http.StatusInternalServerError,
+				`{ "message": "test" }`,
+			},
+			{
+				"return error with custom status code",
+				ErrorHandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					return struct {
+						errorTest
+						errorStatusCode
+					}{"test", http.StatusBadRequest}
+				}),
+				http.StatusBadRequest,
+				`{ "message": "test" }`,
+			},
+			{
+				"return error with custom body",
+				ErrorHandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					return struct {
+						errorTest
+						errorBody
+					}{"test", "true"}
+				}),
+				http.StatusInternalServerError,
+				true,
+			},
+			{
+				"return error with custom status code and body",
+				ErrorHandlerFunc(func(w http.ResponseWriter, r *http.Request) error {
+					return struct {
+						errorTest
+						errorStatusCode
+						errorBody
+					}{"test", http.StatusBadRequest, "true"}
+				}),
+				http.StatusBadRequest,
+				true,
+			},
+		}
 
-	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "/", nil)
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				w := httptest.NewRecorder()
+				r := httptest.NewRequest(http.MethodGet, "/", nil)
 
-	handler.ServeHTTP(w, r)
+				c.handler.ServeHTTP(w, r)
 
-	if statusCode := w.Result().StatusCode; statusCode != http.StatusCreated {
-		t.Errorf("got %v, want %v", statusCode, http.StatusCreated)
-	}
+				assert.Exactly(t, c.statusCode, w.Code)
 
-	if locationHeader := w.Result().Header.Get(HeaderLocation); locationHeader != locationTest {
-		t.Errorf("got %v, want %v", locationHeader, locationTest)
-	}
-
-	handler = createResponseHandlerFunc(nil, errTest)
-
-	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "/", nil)
-
-	handler.ServeHTTP(w, r)
-
-	if statusCode := w.Result().StatusCode; statusCode != http.StatusInternalServerError {
-		t.Errorf("got %v, want %v", statusCode, http.StatusInternalServerError)
-	}
-
-	errorMessage := &errorMessage{}
-	err := ReadJSON(w.Result().Body, errorMessage)
-
-	if err != nil {
-		t.Error("got err, want nil")
-	}
-
-	if errorMessage.Message != errTest.Error() {
-		t.Errorf("got %v, want %v", errorMessage.Message, errTest.Error())
-	}
-
-	testCookie := &http.Cookie{
-		Name:  HeaderAuthorization,
-		Value: "Bearer a1b2c3d4e5",
-	}
-
-	handler = createResponseHandlerFunc(ResponseOK().WithCookie(testCookie).WithBody(true), nil)
-
-	w = httptest.NewRecorder()
-	r = httptest.NewRequest(http.MethodGet, "/", nil)
-
-	handler.ServeHTTP(w, r)
-
-	if n := len(w.Result().Cookies()); n != 1 {
-		t.Fatalf("got %v, want %v", n, 1)
-	}
-
-	if c := w.Result().Cookies()[0]; reflect.DeepEqual(c, testCookie) {
-		t.Errorf("got %v, want %v", c, testCookie)
-	}
+				if body, ok := c.body.(string); ok {
+					assert.JSONEq(t, body, w.Body.String())
+				}
+			})
+		}
+	})
 }

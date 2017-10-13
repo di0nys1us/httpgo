@@ -1,6 +1,7 @@
 package httpgo
 
 import (
+	"log"
 	"net/http"
 )
 
@@ -8,24 +9,36 @@ type errorMessage struct {
 	Message string `json:"message"`
 }
 
-type ResponseHandlerFunc func(http.ResponseWriter, *http.Request) (*Response, error)
+func newErrorMessage(err error) *errorMessage {
+	return &errorMessage{err.Error()}
+}
 
-func (f ResponseHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	response, err := f(w, r)
+// ErrorHandlerFunc TODO
+type ErrorHandlerFunc func(http.ResponseWriter, *http.Request) error
 
-	if err != nil {
-		WriteJSON(w, http.StatusInternalServerError, &errorMessage{err.Error()})
+// ServeHTTP TODO
+func (f ErrorHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := f(w, r)
+
+	if err == nil {
+		return
 	}
 
-	if err == nil && response != nil {
-		for k, v := range response.Headers {
-			w.Header().Set(k, v)
-		}
+	log.Printf("httpgo: %v", err)
 
-		for _, c := range response.Cookies {
-			http.SetCookie(w, c)
-		}
+	switch v := err.(type) {
 
-		WriteJSON(w, response.StatusCode, response.Body)
+	case ErrorResponse:
+		WriteJSON(w, v.StatusCode(), v.Body())
+
+	case StatusCodeResponse:
+		WriteJSON(w, v.StatusCode(), newErrorMessage(err))
+
+	case BodyResponse:
+		WriteJSON(w, http.StatusInternalServerError, v.Body())
+
+	default:
+		WriteJSON(w, http.StatusInternalServerError, newErrorMessage(err))
+
 	}
 }
