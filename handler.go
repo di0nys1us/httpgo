@@ -17,8 +17,8 @@ func newErrorMessage(err error) *errorMessage {
 type ErrorHandlerFunc func(http.ResponseWriter, *http.Request) error
 
 // ServeHTTP TODO
-func (f ErrorHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	err := f(w, r)
+func (fn ErrorHandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	err := fn(w, r)
 
 	if err == nil {
 		return
